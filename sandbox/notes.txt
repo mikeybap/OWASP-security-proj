@@ -1,0 +1,7 @@
+Project meeting notes — 2026-10-06
+
+- Kickoff for the AI agent security lab.
+- Goal: build a small local agent, test it against OWASP agentic risks, then harden it.
+- Next step: get Ollama running and confirm the agent can read this file.
+
+(This is a sample file so the agent has something harmless to read during Phase 1 testing.)

@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local secrets — NEVER commit real keys. This lab uses only a throwaway local key.
+.env
+*.key
+
+# Test output
+garak_runs/
+promptfoo-output/
+*.report.html
+
+# OS
+.DS_Store

@@ -1,0 +1,10 @@
+# Python dependencies for the AI agent security lab
+# Install into a virtual environment:  pip install -r requirements.txt
+mcp>=1.2.0
+fastmcp>=2.0.0
+ollama>=0.3.0
+
+# Automated adversarial testing (Phase 3). garak is optional but recommended.
+#   pip install garak
+# promptfoo is a separate Node tool, installed with npm (see README):
+#   npm install -g promptfoo
