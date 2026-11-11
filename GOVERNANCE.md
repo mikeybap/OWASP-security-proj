@@ -1,72 +1,73 @@
 # Deploying Tool-Using AI Agents: A Security Baseline
 
-*A short governance memo accompanying the "Securing an AI Agent" lab. It generalizes the lab's
-hands-on findings into requirements an organization should meet before putting a tool-using AI
-agent into production.*
+*A short memo that takes the findings from this lab and turns them into a checklist of what an
+organization should have in place before putting a tool-using AI agent into production.*
 
-## Context
+## Background
 
-AI agents are moving from answering questions to taking actions — reading files, calling APIs,
-executing workflows — usually through the Model Context Protocol (MCP), which exposes "tools" to
-a language model. This shift reintroduces a decades-old security problem in a new form: a
-component with the ability to act can be steered into acting against its owner's interests. The
-accompanying lab demonstrated this empirically on a minimal local agent: out of four attacks, an
-undefended agent failed all four (sandbox escape, prompt injection, and unnecessary network
-access). Targeted controls reduced that to one. The requirements below follow directly from which
-controls worked and which did not.
+AI agents are shifting from answering questions to taking actions: reading files, calling APIs,
+running multi-step workflows. Most of this happens through the Model Context Protocol (MCP),
+which hands a language model a set of "tools" it can invoke. The security problem that comes with
+that is an old one wearing new clothes. Any component that can act can be talked into acting
+against its owner.
 
-## The core principle
+My lab showed this on a deliberately minimal agent. Undefended, it failed all four attacks I threw
+at it: it escaped its sandbox, obeyed instructions hidden in a file, let a user override its task
+outright, and happily made network calls it had no reason to make. Adding a handful of targeted
+controls dropped that to one. The recommendations below come straight out of which controls held
+and which didn't.
 
-**A language model cannot be relied upon to enforce its own security.** In testing, defenses
-written as deterministic code (restricting file paths, removing an unneeded tool) were 100%
-effective; a defense written as a persuasive system-prompt instruction stopped some attacks but
-not a directly adversarial input. Security controls for agents must therefore live **outside the
-model**, at the boundary where the agent calls tools — not inside the prompt, where they depend
-on the model's cooperation.
+## The one thing to understand first
 
-## Requirements
+A language model can't be trusted to enforce its own security. In my testing, the defenses I wrote
+as plain code (restricting file paths, deleting an unneeded tool) worked every single time. The
+defense I wrote as a firmly worded instruction in the system prompt worked against sneaky injected
+content but folded the moment a user told the agent directly to ignore it. So the controls that
+matter belong outside the model, at the point where it calls a tool, not inside the prompt where
+they rely on the model choosing to cooperate.
 
-**1. Least privilege for tools.** An agent should be given only the tools its task requires.
-Every additional capability is attack surface. In the lab, simply removing an unneeded network
-tool eliminated an entire class of risk. Review each tool against the agent's actual job and
-remove anything not strictly necessary.
+## What to require
 
-**2. Enforce resource boundaries in code.** Any tool that touches files, networks, or other
-resources must validate its own inputs and confine itself to an allowed scope — e.g. resolving a
-real file path and rejecting anything outside a permitted directory. This is what reliably stopped
-sandbox escape. Do not rely on the model to "know" not to go out of bounds.
+**Give each agent only the tools it needs.** Every extra capability is one more thing an attacker
+can reach for. In my lab, deleting a single network tool the agent never actually needed wiped out
+a whole category of risk on its own. Go through the tool list and cut anything the job doesn't
+strictly require.
 
-**3. Treat all external content as untrusted data, never instructions.** Text an agent reads from
-a file, a web page, or another tool must be handled as data to be processed, not as commands to be
-obeyed. Clearly delimiting untrusted content and instructing the model accordingly measurably
-reduced indirect prompt injection in testing. This is necessary but, on its own, not sufficient —
-see requirement 6.
+**Enforce boundaries in code, not in prose.** Any tool that touches files, the network, or other
+resources has to check its own inputs and stay inside an allowed scope. For a file tool that means
+resolving the real path and refusing anything outside the permitted directory. This is what
+reliably stopped the sandbox escape. Don't count on the model to "know" where the line is.
 
-**4. Authenticate the tool layer.** The tool server (MCP server) should require authentication so
-that only the intended agent can invoke its tools; unauthenticated tool servers are among the most
-common real-world weaknesses. (Noted as future work in the lab, which ran fully local.)
+**Treat everything the agent reads as data, never as commands.** Text that comes back from a file,
+a web page, or another tool should be processed, not obeyed. Wrapping that content clearly and
+telling the model it isn't authoritative measurably cut down indirect injection in my tests. It
+helps, but it isn't enough by itself, which is the whole reason for the next few points.
 
-**5. Require human approval for consequential actions.** Any action that changes state, moves
-money, sends communications, or deletes data should pause for explicit human confirmation rather
-than executing autonomously. This bounds the damage any single injection or model error can cause.
+**Authenticate the tool layer.** The MCP server should require authentication so only the intended
+agent can call its tools. Unauthenticated tool servers are one of the most common weaknesses people
+are finding in real deployments. My lab ran fully local, so I've flagged this as the obvious next
+build rather than something I implemented.
 
-**6. Defense in depth — do not trust any single layer.** The lab's starkest result was that
-prompt-level defense alone did not stop a direct adversarial user. Combine model-side measures
-(untrusted-data handling) with hard controls (scoping, allowlisting, authentication, human gates)
-so that one bypassed layer does not mean full compromise.
+**Put a human in front of anything consequential.** Actions that change state, move money, send
+messages, or delete data should wait for a person to approve them instead of firing on their own.
+That one gate caps how much damage any single bad instruction or model slip can do.
 
-**7. Vet the tool supply chain.** Third-party MCP tools run with the agent's privileges and can
-carry hidden instructions in their descriptions or outputs ("tool poisoning"). Treat adding a tool
-like adding a dependency: review its source, pin versions, and limit what it can reach.
+**Don't trust any single layer.** The sharpest result from the lab was that prompt-level defense
+alone did not stop a directly adversarial user. Stack the model-side measures together with the
+hard controls (scoping, allowlists, authentication, human approval) so that getting past one layer
+doesn't hand over the whole system.
 
-**8. Log and monitor agent actions.** Record every tool call and its arguments so that misuse is
-detectable after the fact and auditable. An agent that acts without an audit trail cannot be
-investigated.
+**Vet third-party tools like dependencies.** An MCP tool you pull in runs with your agent's
+privileges, and it can smuggle instructions through its description or its output. Review the
+source, pin the version, and limit what it can reach, the same way you'd treat any other package
+you didn't write.
 
-## Summary
+**Log every action.** Record each tool call and its arguments. If an agent can act without leaving
+a trail, you can't investigate it when something goes wrong, and you can't prove it behaved when it
+went right.
 
-Securing an AI agent is less about making the model "smarter" and more about assuming the model
-can be fooled and constraining what it is able to do when it is. Scope tools tightly, enforce
-boundaries in code, treat outside text as data, authenticate the tool layer, keep a human in the
-loop for anything consequential, and never depend on a single control. The empirical lesson from
-the lab is simple: the controls that held were the ones the model could not talk its way past.
+## Bottom line
+
+Securing an agent isn't really about making the model smarter. It's about assuming it can be
+fooled and limiting what it can do when it is. The pattern from the lab was consistent: the
+controls that held up were the ones the model couldn't talk its way around.
