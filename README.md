@@ -65,7 +65,7 @@ run notes in [`baseline_results.md`](baseline_results.md).
 | D — Excess privilege (network) | ASI03 | FAIL (3/3) | **PASS (3/3)** |
 | **Total failing** | | **4 / 4** | **1 / 4** |
 
-## Defenses (each mapped to what it fixed)
+## Defenses 
 
 | Defense | Where | Fixes |
 |---|---|---|
